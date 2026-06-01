@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Home Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        p.sub {
+            text-align: center;
+            color: gray;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .alert {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+
+        .card h4 {
+            margin: 0 0 3px 0;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .card small {
+            font-size: 11px;
+            color: #9a8181;
+        }
+
+        .card .val {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 8px 0 2px 0;
+        }
+
+        .card .room {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .safe { color: green; }
+        .danger { color: red; }
+        .open { color: orange; }
+        .closed { color: #333; }
+        .yes { color: green; }
+        .no { color: #aaa; }
+
+        /* bottom two sections */
+        .bottom {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .section {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+
+        .section h4 {
+            margin: 0 0 10px 0;
+            font-size: 13px;
+            color: #555;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+
+        table {
+            width: 100%;
+            font-size: 12px;
+            border-collapse: collapse;
+        }
+
+        td, th {
+            padding: 5px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        th { color: #888; font-weight: normal; }
+
+        .log {
+            font-size: 12px;
+            padding: 7px 8px;
+            margin-bottom: 5px;
+            border-left: 3px solid #ccc;
+            background: #fafafa;
+            cursor: pointer;
+        }
+
+        .log.red { border-left-color: red; }
+        .log.orange { border-left-color: orange; }
+        .log.blue { border-left-color: #1a73e8; }
+
+        .log-detail {
+            display: none;
+            font-size: 11px;
+            color: #666;
+            background: #f0f0f0;
+            padding: 5px;
+            margin-top: 5px;
+            font-family: monospace;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 11px;
+            color: #bbb;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Smart Home Monitor</h2>
+<p class="sub">(Updates every 5 seconds)</p>
+
+<div class="alert" id="alert-box"></div>
+
+<div class="grid">
+
+    <div class="card">
+        <h4>Temperature</h4>
+        <small>stored in MySQL</small>
+        <div class="val" id="temp-val">--</div>
+        <div class="room" id="temp-room">--</div>
+    </div>
+
+    <div class="card">
+        <h4>Gas</h4>
+        <small>stored in MySQL</small>
+        <div class="val" id="gas-val">--</div>
+        <div class="room" id="gas-room">--</div>
+    </div>
+
+    <div class="card">
+        <h4>Light</h4>
+        <small>stored in MySQL</small>
+        <div class="val" id="light-val">--</div>
+        <div class="room" id="light-room">--</div>
+    </div>
+
+    <div class="card">
+        <h4>Motion</h4>
+        <small>stored in MongoDB</small>
+        <div class="val" id="motion-val">--</div>
+        <div class="room" id="motion-room">--</div>
+    </div>
+
+    <div class="card">
+        <h4>Door</h4>
+        <small>stored in MongoDB</small>
+        <div class="val" id="door-val">--</div>
+        <div class="room" id="door-room">--</div>
+    </div>
+
+    <div class="card">
+        <h4>Device Control</h4>
+        <small>stored in Neo4j</small>
+        <div class="val" style="font-size:15px; margin-top:10px;" id="device-val">--</div>
+        <div class="room" id="device-action">--</div>
+    </div>
+
+</div>
+
+<div class="bottom">
+
+    <div class="section">
+        <h4>Recent Temperature Readings &nbsp; <span style="color:#aaa; font-weight:normal; font-size:11px;">MySQL</span></h4>
+        <table>
+            <tr><th>Time</th><th>Room</th><th>Temp</th></tr>
+            <tbody id="history-body"></tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h4>Incident Log &nbsp; <span style="color:#aaa; font-weight:normal; font-size:11px;">MongoDB — click to see raw document</span></h4>
+        <div id="incident-log">No incidents yet.</div>
+    </div>
+
+</div>
+<script>
+    function loadAlerts() {
+        fetch("/api/alerts").then(r => r.json()).then(data => {
+            let box = document.getElementById("alert-box");
+            if (data.length === 0) {
+                box.style.display = "none";
+            } else {
+                box.style.display = "block";
+                box.innerHTML = data.map(a => "Warning: " + a).join("<br>");
+            }
+        });
+    }
+
+    function loadTemperature() {
+        fetch("/api/temperature").then(r => r.json()).then(data => {
+            if (!data.length) return;
+            document.getElementById("temp-val").innerText = data[0].value + " C";
+            document.getElementById("temp-room").innerText = data[0].room;
+        });
+    }
+
+    function loadGas() {
+        fetch("/api/gas").then(r => r.json()).then(data => {
+            if (!data.length) return;
+            let el = document.getElementById("gas-val");
+            el.innerText = data[0].status;
+            el.className = "val " + data[0].status;
+            document.getElementById("gas-room").innerText = data[0].room + " — " + data[0].value;
+        });
+    }
+
+    function loadLight() {
+        fetch("/api/light").then(r => r.json()).then(data => {
+            if (!data.length) return;
+            document.getElementById("light-val").innerText = data[0].lux + " lux";
+            document.getElementById("light-room").innerText = data[0].room;
+        });
+    }
+
+    function loadMotion() {
+        fetch("/api/motion").then(r => r.json()).then(data => {
+            if (!data.length) return;
+            let el = document.getElementById("motion-val");
+            el.innerText = data[0].detected ? "Detected" : "Clear";
+            el.className = "val " + (data[0].detected ? "yes" : "no");
+            document.getElementById("motion-room").innerText = data[0].room;
+        });
+    }
+
+    function loadDoor() {
+        fetch("/api/door").then(r => r.json()).then(data => {
+            if (!data.length) return;
+            let el = document.getElementById("door-val");
+            el.innerText = data[0].status;
+            el.className = "val " + data[0].status;
+            document.getElementById("door-room").innerText = data[0].door;
+        });
+    }
+
+    function loadDevices() {
+        fetch("/api/devices").then(r => r.json()).then(data => {
+            if (!data.length) return;
+            document.getElementById("device-val").innerText = data[0].from + " → " + data[0].to;
+            document.getElementById("device-action").innerText = data[0].action;
+        });
+    }
+
+    function loadHistory() {
+        fetch("/api/temperature_history").then(r => r.json()).then(data => {
+            let html = "";
+            data.forEach(d => {
+                let time = d.time.split(" ")[1].split(".")[0];
+                html += `<tr><td>${time}</td><td>${d.room}</td><td>${d.value} C</td></tr>`;
+            });
+            document.getElementById("history-body").innerHTML = html;
+        });
+    }
+
+    function loadIncidents() {
+        fetch("/api/incidents").then(r => r.json()).then(data => {
+            let container = document.getElementById("incident-log");
+            if (!data.length) {
+                container.innerHTML = "No incidents recorded.";
+                return;
+            }
+            let html = "";
+            data.forEach((d, i) => {
+                let cls = d.type === "gas" ? "red" : d.type === "door" ? "orange" : "blue";
+                let json = JSON.stringify(d.raw, null, 2);
+                html += `
+                    <div class="log ${cls}" onclick="toggleDetail(${i})">
+                        ${d.message}
+                        <div class="log-detail" id="detail-${i}">${json}</div>
+                    </div>`;
+            });
+            container.innerHTML = html;
+        });
+    }
+
+    function toggleDetail(i) {
+        let el = document.getElementById("detail-" + i);
+        el.style.display = el.style.display === "block" ? "none" : "block";
+    }
+
+    function loadAll() {
+        loadAlerts();
+        loadTemperature();
+        loadGas();
+        loadLight();
+        loadMotion();
+        loadDoor();
+        loadDevices();
+        loadHistory();
+        loadIncidents();
+    }
+
+    loadAll();
+    setInterval(loadAll, 5000);
+</script>
+
+</body>
+</html>
