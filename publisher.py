@@ -8,8 +8,6 @@ client.connect("localhost", 1883, 60)
 
 print("Publisher started. Sending data every 5 seconds...")
 print("Press Ctrl+C to stop")
-print("---")
-
 device_events = [
     {"from": "smartphone", "to": "smart_bulb", "action": "turn_on"},
     {"from": "smartphone", "to": "AC", "action": "turn_off"},
@@ -20,8 +18,6 @@ device_events = [
 ]
 
 while True:
-
-    # 🌡 Temperature sensor
     temp_data = {
         "room": random.choice(["living_room", "bedroom", "kitchen"]),
         "value": round(random.uniform(18, 35), 1)
@@ -29,7 +25,6 @@ while True:
     client.publish("sensor/temp", json.dumps(temp_data))
     print("Sent temperature:", temp_data)
 
-    # 🕵️ Motion sensor
     motion_data = {
         "room": random.choice(["hallway", "living_room", "garden"]),
         "detected": random.choice([True, False])
@@ -37,7 +32,6 @@ while True:
     client.publish("sensor/motion", json.dumps(motion_data))
     print("Sent motion:", motion_data)
 
-    # 💨 Gas sensor (NEW)
     gas_data = {
         "room": random.choice(["kitchen", "garage"]),
         "value": round(random.uniform(0.0, 1.0), 2),
@@ -46,7 +40,6 @@ while True:
     client.publish("sensor/gas", json.dumps(gas_data))
     print("Sent gas:", gas_data)
 
-    # 💡 Light sensor (NEW)
     light_data = {
         "room": random.choice(["living_room", "bedroom", "kitchen"]),
         "lux": random.randint(50, 1000)
@@ -54,18 +47,14 @@ while True:
     client.publish("sensor/light", json.dumps(light_data))
     print("Sent light:", light_data)
 
-    # 🚪 Door sensor (NEW)
     door_data = {
         "door": random.choice(["main_door", "back_door"]),
         "status": random.choice(["open", "closed"])
     }
     client.publish("sensor/door", json.dumps(door_data))
     print("Sent door:", door_data)
-
-    # 📱 Device events (unchanged)
     device_data = random.choice(device_events)
     client.publish("home/devices", json.dumps(device_data))
     print("Sent device event:", device_data)
 
-    print("---")
     time.sleep(5)
