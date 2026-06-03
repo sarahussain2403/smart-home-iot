@@ -4,7 +4,6 @@ import pymysql
 from pymongo import MongoClient
 from neo4j import GraphDatabase
 
-# ---------------- MYSQL ----------------
 db = pymysql.connect(
     host="localhost",
     user="root",
@@ -14,7 +13,6 @@ db = pymysql.connect(
 cursor = db.cursor()
 print("Connected to MySQL!")
 
-# ---------------- MONGODB ----------------
 mongo_client = MongoClient("mongodb://localhost:27017/")
 mongo_db = mongo_client["smarthome"]
 
@@ -23,15 +21,12 @@ door_collection = mongo_db["door_events"]
 
 print("Connected to MongoDB!")
 
-# ---------------- NEO4J ----------------
 neo4j_driver = GraphDatabase.driver(
     "neo4j://127.0.0.1:7687",
     auth=("neo4j", "password")
 )
 print("Connected to Neo4j!")
 
-
-# ---------------- NEO4J FUNCTION ----------------
 def save_device_to_neo4j(from_device, to_device, action):
     try:
         with neo4j_driver.session() as session:
@@ -46,8 +41,6 @@ def save_device_to_neo4j(from_device, to_device, action):
     except Exception as e:
         print("Neo4j error:", e)
 
-
-# ---------------- MQTT CONNECT ----------------
 def on_connect(client, userdata, flags, rc):
     print("Connected to Mosquitto!")
 
@@ -56,11 +49,9 @@ def on_connect(client, userdata, flags, rc):
 
     print("Subscribed to all sensor topics!")
 
-
-# ---------------- MQTT MESSAGE HANDLER ----------------
 def on_message(client, userdata, msg):
 
-    topic = msg.topic.strip()   # 🔥 IMPORTANT FIX
+    topic = msg.topic.strip()   
     data = json.loads(msg.payload.decode())
 
     print("\n--- MESSAGE RECEIVED ---")
@@ -69,7 +60,7 @@ def on_message(client, userdata, msg):
 
     try:
 
-        # 🌡 TEMPERATURE → MySQL
+      
         if "temp" in topic:
             cursor.execute(
                 "INSERT INTO temperature (room, value) VALUES (%s, %s)",
@@ -78,7 +69,7 @@ def on_message(client, userdata, msg):
             db.commit()
             print("TEMP saved → MySQL")
 
-        # 💨 GAS → MySQL
+    
         elif "gas" in topic:
             cursor.execute(
                 "INSERT INTO gas (room, value, status) VALUES (%s, %s, %s)",
@@ -87,7 +78,7 @@ def on_message(client, userdata, msg):
             db.commit()
             print("GAS saved → MySQL")
 
-        # 💡 LIGHT → MySQL
+      
         elif "light" in topic:
             cursor.execute(
                 "INSERT INTO light (room, lux) VALUES (%s, %s)",
@@ -96,17 +87,17 @@ def on_message(client, userdata, msg):
             db.commit()
             print("LIGHT saved → MySQL")
 
-        # 🕵️ MOTION → MongoDB
+        
         elif "motion" in topic:
             motion_collection.insert_one(data)
             print("MOTION saved → MongoDB")
 
-        # 🚪 DOOR → MongoDB
+    
         elif "door" in topic:
             door_collection.insert_one(data)
             print("DOOR saved → MongoDB")
 
-        # 📱 DEVICE → Neo4j
+        
         elif "devices" in topic:
             save_device_to_neo4j(
                 data["from"],
@@ -120,7 +111,7 @@ def on_message(client, userdata, msg):
     print("---")
 
 
-# ---------------- MQTT CLIENT ----------------
+
 client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
