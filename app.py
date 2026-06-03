@@ -4,7 +4,6 @@ from pymongo import MongoClient
 from neo4j import GraphDatabase
 
 app = Flask(__name__)
-
 def get_mysql():
     return pymysql.connect(
         host="localhost",
@@ -20,7 +19,6 @@ neo4j_driver = GraphDatabase.driver(
     "neo4j://127.0.0.1:7687",
     auth=("neo4j", "password")
 )
-
 @app.route("/")
 def dashboard():
     return render_template("dashboard.html")
@@ -99,7 +97,6 @@ def alerts():
 def incidents():
     logs = []
 
-    # Gas danger from MongoDB
     gas_docs = mongo_db["motion_events"].find({"detected": True}).sort("_id", -1).limit(3)
     for d in gas_docs:
         logs.append({
@@ -108,7 +105,7 @@ def incidents():
             "raw": {"room": d["room"], "detected": d["detected"]}
         })
 
-    # Door open events from MongoDB
+  
     door_docs = mongo_db["door_events"].find({"status": "open"}).sort("_id", -1).limit(3)
     for d in door_docs:
         logs.append({
