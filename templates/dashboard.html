@@ -31,6 +31,17 @@
             display: none;
         }
 
+        .fan-alert {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            font-size: 13px;
+            display: none;
+            color: #333;
+        }
+
         .grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -53,7 +64,7 @@
 
         .card small {
             font-size: 11px;
-            color: #9a8181;
+            color: #888;
         }
 
         .card .val {
@@ -74,11 +85,11 @@
         .yes { color: green; }
         .no { color: #aaa; }
 
-        /* bottom two sections */
         .bottom {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 15px;
+            margin-bottom: 15px;
         }
 
         .section {
@@ -133,6 +144,40 @@
             font-family: monospace;
         }
 
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .dot-on { background: green; }
+        .dot-off { background: #ccc; }
+
+        .btn {
+            border: 1px solid #ddd;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 5px;
+            background: white;
+        }
+
+        .btn:hover { background: #f0f0f0; }
+        .btn-on { color: green; border-color: green; }
+        .btn-off { color: red; border-color: red; }
+
         .footer {
             text-align: center;
             font-size: 11px;
@@ -144,72 +189,99 @@
 <body>
 
 <h2>Smart Home Monitor</h2>
-<p class="sub">(Updates every 5 seconds)</p>
+<p class="sub">Updates every 5 seconds</p>
 
 <div class="alert" id="alert-box"></div>
+<div class="fan-alert" id="fan-alert"></div>
 
 <div class="grid">
-
     <div class="card">
         <h4>Temperature</h4>
         <small>stored in MySQL</small>
         <div class="val" id="temp-val">--</div>
         <div class="room" id="temp-room">--</div>
     </div>
-
     <div class="card">
         <h4>Gas</h4>
         <small>stored in MySQL</small>
         <div class="val" id="gas-val">--</div>
         <div class="room" id="gas-room">--</div>
     </div>
-
     <div class="card">
         <h4>Light</h4>
         <small>stored in MySQL</small>
         <div class="val" id="light-val">--</div>
         <div class="room" id="light-room">--</div>
     </div>
-
     <div class="card">
         <h4>Motion</h4>
         <small>stored in MongoDB</small>
         <div class="val" id="motion-val">--</div>
         <div class="room" id="motion-room">--</div>
     </div>
-
     <div class="card">
         <h4>Door</h4>
         <small>stored in MongoDB</small>
         <div class="val" id="door-val">--</div>
         <div class="room" id="door-room">--</div>
     </div>
-
     <div class="card">
         <h4>Device Control</h4>
         <small>stored in Neo4j</small>
         <div class="val" style="font-size:15px; margin-top:10px;" id="device-val">--</div>
         <div class="room" id="device-action">--</div>
     </div>
-
 </div>
 
 <div class="bottom">
-
     <div class="section">
-        <h4>Recent Temperature Readings &nbsp; <span style="color:#aaa; font-weight:normal; font-size:11px;">MySQL</span></h4>
+        <h4>Average Temperature per Room <span style="color:#aaa; font-size:11px;">MySQL</span></h4>
         <table>
-            <tr><th>Time</th><th>Room</th><th>Temp</th></tr>
-            <tbody id="history-body"></tbody>
+            <tr><th>Room</th><th>Average Temp</th></tr>
+            <tbody id="avg-body"></tbody>
         </table>
     </div>
 
     <div class="section">
-        <h4>Incident Log &nbsp; <span style="color:#aaa; font-weight:normal; font-size:11px;">MongoDB — click to see raw document</span></h4>
+        <h4>Incident Log <span style="color:#aaa; font-size:11px;">MongoDB (click to see raw document)</span></h4>
         <div id="incident-log">No incidents yet.</div>
     </div>
-
 </div>
+
+<div class="bottom">
+    <div class="section">
+        <h4>Light Controls</h4>
+        <div class="control-row" id="row-living_room">
+            <span><span class="status-dot" id="dot-living_room"></span>Living Room</span>
+            <div>
+                <button class="btn btn-on" onclick="controlLight('living_room', 'turn_on')">On</button>
+                <button class="btn btn-off" onclick="controlLight('living_room', 'turn_off')">Off</button>
+            </div>
+        </div>
+        <div class="control-row" id="row-bedroom">
+            <span><span class="status-dot" id="dot-bedroom"></span>Bedroom</span>
+            <div>
+                <button class="btn btn-on" onclick="controlLight('bedroom', 'turn_on')">On</button>
+                <button class="btn btn-off" onclick="controlLight('bedroom', 'turn_off')">Off</button>
+            </div>
+        </div>
+        <div class="control-row" id="row-kitchen">
+            <span><span class="status-dot" id="dot-kitchen"></span>Kitchen</span>
+            <div>
+                <button class="btn btn-on" onclick="controlLight('kitchen', 'turn_on')">On</button>
+                <button class="btn btn-off" onclick="controlLight('kitchen', 'turn_off')">Off</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h4>System Logs</h4>
+        <div id="system-log">No events yet.</div>
+    </div>
+</div>
+
+
+
 <script>
     function loadAlerts() {
         fetch("/api/alerts").then(r => r.json()).then(data => {
@@ -219,6 +291,21 @@
             } else {
                 box.style.display = "block";
                 box.innerHTML = data.map(a => "Warning: " + a).join("<br>");
+            }
+        });
+    }
+
+    function loadFanStatus() {
+        fetch("/api/fan_status").then(r => r.json()).then(data => {
+            let box = document.getElementById("fan-alert");
+            let log = document.getElementById("system-log");
+            if (data.active) {
+                box.style.display = "block";
+                box.innerHTML = "Kitchen fan activated automatically — gas danger detected in " + data.room;
+                log.innerHTML = "<div class='log red'>Gas danger detected in " + data.room + " — kitchen fan turned on automatically</div>";
+            } else {
+                box.style.display = "none";
+                log.innerHTML = "No automated reactions triggered.";
             }
         });
     }
@@ -277,14 +364,13 @@
         });
     }
 
-    function loadHistory() {
-        fetch("/api/temperature_history").then(r => r.json()).then(data => {
+    function loadAvgTemp() {
+        fetch("/api/temperature_avg").then(r => r.json()).then(data => {
             let html = "";
             data.forEach(d => {
-                let time = d.time.split(" ")[1].split(".")[0];
-                html += `<tr><td>${time}</td><td>${d.room}</td><td>${d.value} C</td></tr>`;
+                html += `<tr><td>${d.room}</td><td>${d.avg} C</td></tr>`;
             });
-            document.getElementById("history-body").innerHTML = html;
+            document.getElementById("avg-body").innerHTML = html;
         });
     }
 
@@ -297,7 +383,7 @@
             }
             let html = "";
             data.forEach((d, i) => {
-                let cls = d.type === "gas" ? "red" : d.type === "door" ? "orange" : "blue";
+                let cls = d.type === "door" ? "orange" : "blue";
                 let json = JSON.stringify(d.raw, null, 2);
                 html += `
                     <div class="log ${cls}" onclick="toggleDetail(${i})">
@@ -309,6 +395,30 @@
         });
     }
 
+    function loadLightStatus() {
+        fetch("/api/light_status").then(r => r.json()).then(data => {
+            data.forEach(d => {
+                let dot = document.getElementById("dot-" + d.room);
+                if (dot) {
+                    dot.className = "status-dot " + (d.status === "on" ? "dot-on" : "dot-off");
+                }
+            });
+        });
+    }
+
+    function controlLight(room, action) {
+        fetch("/api/control/light", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({room: room, action: action})
+        }).then(r => r.json()).then(data => {
+            let dot = document.getElementById("dot-" + room);
+            if (dot) {
+                dot.className = "status-dot " + (data.status === "on" ? "dot-on" : "dot-off");
+            }
+        });
+    }
+
     function toggleDetail(i) {
         let el = document.getElementById("detail-" + i);
         el.style.display = el.style.display === "block" ? "none" : "block";
@@ -316,14 +426,16 @@
 
     function loadAll() {
         loadAlerts();
+        loadFanStatus();
         loadTemperature();
         loadGas();
         loadLight();
         loadMotion();
         loadDoor();
         loadDevices();
-        loadHistory();
+        loadAvgTemp();
         loadIncidents();
+        loadLightStatus();
     }
 
     loadAll();
