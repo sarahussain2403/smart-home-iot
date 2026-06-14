@@ -6,8 +6,10 @@ import random
 client = mqtt.Client()
 client.connect("localhost", 1883, 60)
 
-print("Publisher started. Sending data every 5 seconds...")
+print("Publisher started. Sending data every 5 seconds.")
 print("Press Ctrl+C to stop")
+print(" ")
+
 device_events = [
     {"from": "smartphone", "to": "smart_bulb", "action": "turn_on"},
     {"from": "smartphone", "to": "AC", "action": "turn_off"},
@@ -53,6 +55,7 @@ while True:
     }
     client.publish("sensor/door", json.dumps(door_data))
     print("Sent door:", door_data)
+
     device_data = random.choice(device_events)
     client.publish("home/devices", json.dumps(device_data))
     print("Sent device event:", device_data)
