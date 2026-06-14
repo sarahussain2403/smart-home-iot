@@ -18,6 +18,7 @@ mongo_db = mongo_client["smarthome"]
 
 motion_collection = mongo_db["motion_events"]
 door_collection = mongo_db["door_events"]
+alerts_collection = mongo_db["alerts"]
 
 print("Connected to MongoDB!")
 
@@ -27,6 +28,7 @@ neo4j_driver = GraphDatabase.driver(
 )
 print("Connected to Neo4j!")
 
+
 def save_device_to_neo4j(from_device, to_device, action):
     try:
         with neo4j_driver.session() as session:
@@ -35,23 +37,20 @@ def save_device_to_neo4j(from_device, to_device, action):
                 MERGE (b:Device {name: $to_device})
                 MERGE (a)-[:CONTROLS {action: $action}]->(b)
             """, from_device=from_device, to_device=to_device, action=action)
-
         print("DEVICE saved → Neo4j")
-
     except Exception as e:
         print("Neo4j error:", e)
 
+
 def on_connect(client, userdata, flags, rc):
     print("Connected to Mosquitto!")
-
     client.subscribe("sensor/#")
-    client.subscribe("home/devices")
+    client.subscribe("home/#")
+    print("Subscribed to all topics!")
 
-    print("Subscribed to all sensor topics!")
 
 def on_message(client, userdata, msg):
-
-    topic = msg.topic.strip()   
+    topic = msg.topic.strip()
     data = json.loads(msg.payload.decode())
 
     print("\n--- MESSAGE RECEIVED ---")
@@ -59,8 +58,6 @@ def on_message(client, userdata, msg):
     print("DATA:", data)
 
     try:
-
-      
         if "temp" in topic:
             cursor.execute(
                 "INSERT INTO temperature (room, value) VALUES (%s, %s)",
@@ -69,7 +66,6 @@ def on_message(client, userdata, msg):
             db.commit()
             print("TEMP saved → MySQL")
 
-    
         elif "gas" in topic:
             cursor.execute(
                 "INSERT INTO gas (room, value, status) VALUES (%s, %s, %s)",
@@ -78,7 +74,17 @@ def on_message(client, userdata, msg):
             db.commit()
             print("GAS saved → MySQL")
 
-      
+            if data["status"] == "danger":
+                print(f"GAS DANGER in {data['room']} — activating kitchen_fan!")
+                alert_data = {
+                    "trigger": "gas_sensor",
+                    "room": data["room"],
+                    "action": "turn_on",
+                    "device": "kitchen_fan",
+                    "reason": "gas danger detected"
+                }
+                client.publish("home/alerts", json.dumps(alert_data))
+
         elif "light" in topic:
             cursor.execute(
                 "INSERT INTO light (room, lux) VALUES (%s, %s)",
@@ -87,17 +93,14 @@ def on_message(client, userdata, msg):
             db.commit()
             print("LIGHT saved → MySQL")
 
-        
         elif "motion" in topic:
             motion_collection.insert_one(data)
             print("MOTION saved → MongoDB")
 
-    
         elif "door" in topic:
             door_collection.insert_one(data)
             print("DOOR saved → MongoDB")
 
-        
         elif "devices" in topic:
             save_device_to_neo4j(
                 data["from"],
@@ -105,14 +108,22 @@ def on_message(client, userdata, msg):
                 data["action"]
             )
 
+        elif "alerts" in topic:
+            alerts_collection.insert_one(data)
+            print(f"REACTION saved → {data['device']} activated in {data['room']}")
+
+        elif "control/light" in topic:
+            print(f"LIGHT CONTROL → {data['room']} bulb {data['action']}")
+            save_device_to_neo4j("dashboard_user", data["room"] + "_bulb", data["action"])
+
     except Exception as e:
         print("ERROR processing message:", e)
+
+    print(" ")
 
 
 client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
-
 client.connect("localhost", 1883, 60)
-
 client.loop_forever()
